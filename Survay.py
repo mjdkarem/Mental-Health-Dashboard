@@ -12,7 +12,6 @@ st.title("Mental Health Dashboard")
 @st.cache_data
 def load_data():
     df = pd.read_csv("survey.csv")
-
     df = df[(df['Age'] >= 15) & (df['Age'] <= 100)]
 
     def clean_gender(g):
@@ -90,10 +89,6 @@ kpi3.metric("Family History %", f"{(filtered_df['family_history'] == 'Yes').mean
 # Tabs for sections
 tabs = st.tabs(["Overview", "Charts", "Download"])
 
-# Palettes
-yes_no_palette = {key: color for key, color in zip(filtered_df['treatment'].unique(), ['green', 'red', 'gray'])}
-self_employed_palette = {key: color for key, color in zip(filtered_df['self_employed'].unique(), ['green', 'red', 'gray', 'blue'])}
-
 with tabs[0]:
     st.subheader("Treatment by Gender")
     fig1 = px.histogram(filtered_df, x="Gender", color="treatment", barmode='group')
@@ -107,9 +102,9 @@ with tabs[0]:
     fig3 = px.pie(filtered_df, names="self_employed", title="Self-Employment Breakdown")
     st.plotly_chart(fig3, use_container_width=True)
 
-    st.subheader("How Mental Health Affects Work")
-    fig4 = px.bar(filtered_df['work_interfere'].value_counts().reset_index(), x='index', y='work_interfere',
-                 labels={'index': 'Interference Level', 'work_interfere': 'Count'}, color='index')
+    st.subheader("Mental Health Impact on Work")
+    work_counts = filtered_df['work_interfere'].value_counts().reset_index()
+    fig4 = px.bar(work_counts, x='index', y='work_interfere', labels={'index': 'Level of Interference', 'work_interfere': 'Count'})
     st.plotly_chart(fig4, use_container_width=True)
 
     st.subheader("Family History vs Treatment")
@@ -117,9 +112,9 @@ with tabs[0]:
     fig5 = px.sunburst(family_treatment, path=['family_history', 'treatment'], values='count')
     st.plotly_chart(fig5, use_container_width=True)
 
-    st.subheader("Mental Health Benefits at Work")
-    fig6 = px.bar(filtered_df['mental_health_interview'].value_counts().reset_index(), x='index', y='mental_health_interview',
-                 labels={'index': 'Interview Status', 'mental_health_interview': 'Count'})
+    st.subheader("Mental Health Interview Availability")
+    interview_counts = filtered_df['mental_health_interview'].value_counts().reset_index()
+    fig6 = px.bar(interview_counts, x='index', y='mental_health_interview', labels={'index': 'Interview Status', 'mental_health_interview': 'Count'})
     st.plotly_chart(fig6, use_container_width=True)
 
     st.subheader("Company Size Distribution")
@@ -129,8 +124,15 @@ with tabs[0]:
     st.plotly_chart(fig7, use_container_width=True)
 
 with tabs[1]:
-    st.subheader("All Charts Above")
-    st.dataframe(filtered_df.head())
+    st.subheader("Filtered Data Table")
+    st.dataframe(filtered_df.head(50))
+
+    st.subheader("Correlation Heatmap")
+    numerical_cols = ['Age']
+    corr = filtered_df[numerical_cols].corr()
+    fig, ax = plt.subplots()
+    sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+    st.pyplot(fig)
 
 with tabs[2]:
     st.subheader("Download Filtered Dataset")
