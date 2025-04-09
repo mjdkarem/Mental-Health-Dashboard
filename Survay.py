@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import plotly.express as px
+import seaborn as sns
 
 # Page configuration
 st.set_page_config(page_title="Mental Health Dashboard", layout="wide")
@@ -47,7 +47,6 @@ def load_data():
             return 'Not specified'
 
     df['no_employees'] = df['no_employees'].apply(clean_employees)
-
     df['treatment'] = df['treatment'].astype(str).str.strip().str.capitalize()
     df['family_history'] = df['family_history'].astype(str).str.strip().str.capitalize()
 
@@ -85,56 +84,67 @@ kpi1.metric("Total Responses", len(filtered_df))
 kpi2.metric("Treatment %", f"{(filtered_df['treatment'] == 'Yes').mean() * 100:.1f}%")
 kpi3.metric("Family History %", f"{(filtered_df['family_history'] == 'Yes').mean() * 100:.1f}%")
 
-# Tabs for sections
-tabs = st.tabs(["Overview", "Charts", "Download"])
+# Tabs for visualization
+tabs = st.tabs(["Overview", "Data Table & Correlation", "Download"])
 
 with tabs[0]:
-    st.subheader("Treatment by Gender")
-    fig1 = px.histogram(filtered_df, x="Gender", color="treatment", barmode='group')
-    st.plotly_chart(fig1, use_container_width=True)
+    st.subheader("Overview of Key Distributions")
 
-    st.subheader("Age Distribution")
-    fig2 = px.histogram(filtered_df, x="Age", nbins=20, marginal="box")
-    st.plotly_chart(fig2, use_container_width=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("#### Treatment by Gender")
+        fig, ax = plt.subplots(figsize=(4, 3))
+        sns.countplot(data=filtered_df, x="Gender", hue="treatment", palette=['#84c084', '#e07b7b'], ax=ax)
+        ax.set_xlabel("Gender")
+        ax.set_ylabel("Count")
+        st.pyplot(fig)
 
-    st.subheader("Self-Employment Status")
-    fig3 = px.pie(filtered_df, names="self_employed", title="Self-Employment Breakdown")
-    st.plotly_chart(fig3, use_container_width=True)
+    with col2:
+        st.markdown("#### Age Distribution")
+        fig, ax = plt.subplots(figsize=(4, 3))
+        sns.histplot(filtered_df['Age'], bins=20, kde=True, color="#91bcd3", ax=ax)
+        ax.set_xlabel("Age")
+        ax.set_ylabel("Count")
+        st.pyplot(fig)
 
-    st.subheader("Mental Health Impact on Work")
-    work_counts = filtered_df['work_interfere'].value_counts().reset_index()
-    fig4 = px.bar(work_counts, x='index', y='work_interfere', labels={'index': 'Level of Interference', 'work_interfere': 'Count'})
-    st.plotly_chart(fig4, use_container_width=True)
+    col3, col4 = st.columns(2)
+    with col3:
+        st.markdown("#### Family History vs Treatment")
+        fig, ax = plt.subplots(figsize=(4, 3))
+        sns.countplot(data=filtered_df, x="family_history", hue="treatment", palette='Set2', ax=ax)
+        ax.set_xlabel("Family History")
+        ax.set_ylabel("Count")
+        st.pyplot(fig)
 
-    st.subheader("Family History vs Treatment")
-    family_treatment = filtered_df.groupby(['family_history', 'treatment']).size().reset_index(name='count')
-    fig5 = px.sunburst(family_treatment, path=['family_history', 'treatment'], values='count')
-    st.plotly_chart(fig5, use_container_width=True)
-
-    st.subheader("Mental Health Interview Availability")
-    interview_counts = filtered_df['mental_health_interview'].value_counts().reset_index()
-    fig6 = px.bar(interview_counts, x='index', y='mental_health_interview', labels={'index': 'Interview Status', 'mental_health_interview': 'Count'})
-    st.plotly_chart(fig6, use_container_width=True)
-
-    st.subheader("Company Size Distribution")
-    order = ['1-5', '6-25', '26-100', '100-500', '500-1000', 'More than 1000', 'Not specified']
-    company_size = filtered_df['no_employees'].value_counts().reindex(order).reset_index()
-    fig7 = px.bar(company_size, x='index', y='no_employees', labels={'index': 'Company Size', 'no_employees': 'Count'})
-    st.plotly_chart(fig7, use_container_width=True)
+    with col4:
+        st.markdown("#### Company Size Distribution")
+        fig, ax = plt.subplots(figsize=(4, 3))
+        order = ['1-5', '6-25', '26-100', '100-500', '500-1000', 'More than 1000', 'Not specified']
+        sns.countplot(data=filtered_df, x='no_employees', order=order, palette='Greens', ax=ax)
+        ax.set_xlabel('Company Size')
+        ax.set_ylabel('Count')
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
 
 with tabs[1]:
     st.subheader("Filtered Data Table")
     st.dataframe(filtered_df.head(50))
 
     st.subheader("Correlation Heatmap")
-    numerical_cols = ['Age']
-    corr = filtered_df[numerical_cols].corr()
-    fig, ax = plt.subplots()
-    ax.imshow(corr, cmap="coolwarm", interpolation="nearest")
-    ax.set_xticks(range(len(numerical_cols)))
-    ax.set_yticks(range(len(numerical_cols)))
-    ax.set_xticklabels(numerical_cols)
-    ax.set_yticklabels(numerical_cols)
+
+    # Create numeric versions of categorical variables for correlation
+    numeric_df = filtered_df.copy()
+    mapping = {'Yes': 1, 'No': 0, 'Not specified': None}
+    numeric_df['treatment_num'] = numeric_df['treatment'].map(mapping)
+    numeric_df['family_history_num'] = numeric_df['family_history'].map(mapping)
+
+    # Select relevant columns for correlation
+    corr_columns = ['Age', 'treatment_num', 'family_history_num']
+    corr = numeric_df[corr_columns].corr()
+
+    fig, ax = plt.subplots(figsize=(4, 4))
+    sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax, annot_kws={"size": 10})
+    ax.set_title("Correlation Between Age, Treatment & Family History", fontsize=10)
     st.pyplot(fig)
 
 with tabs[2]:
