@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
 
 # Page configuration
@@ -131,7 +130,11 @@ with tabs[1]:
     numerical_cols = ['Age']
     corr = filtered_df[numerical_cols].corr()
     fig, ax = plt.subplots()
-    sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+    ax.imshow(corr, cmap="coolwarm", interpolation="nearest")
+    ax.set_xticks(range(len(numerical_cols)))
+    ax.set_yticks(range(len(numerical_cols)))
+    ax.set_xticklabels(numerical_cols)
+    ax.set_yticklabels(numerical_cols)
     st.pyplot(fig)
 
 with tabs[2]:
