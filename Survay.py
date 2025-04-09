@@ -64,7 +64,6 @@ def load_data():
     df['work_interfere'] = df['work_interfere'].replace({'nan': 'Not specified'})
     df['mental_health_interview'] = df['mental_health_interview'].replace({'nan': 'Not specified'})
 
-    # Drop rows with missing critical values
     df.dropna(subset=['Gender', 'treatment', 'family_history'], inplace=True)
 
     # Convert relevant fields to category type
@@ -83,21 +82,22 @@ countries = st.sidebar.multiselect("Select Country", sorted(df['Country'].dropna
 genders = st.sidebar.multiselect("Select Gender", df['Gender'].cat.categories)
 age_range = st.sidebar.slider("Select Age Range", 15, 100, (20, 40))
 
-# Filter dataset
 filtered_df = df[
     (df['Country'].isin(countries) if countries else True) &
     (df['Gender'].isin(genders) if genders else True) &
     (df['Age'] >= age_range[0]) & (df['Age'] <= age_range[1])
 ]
 
-# Display number of records
 st.markdown(f"### Number of records: {filtered_df.shape[0]}")
+
+# Custom palette for Yes/No
+yes_no_palette = {"Yes": "green", "No": "red"}
+neutral_palette = sns.color_palette("pastel")
 
 # Chart 1: Treatment by Gender
 st.subheader("Mental Health Treatment by Gender")
-sns.set_style("whitegrid")
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="Gender", hue="treatment", palette="Set2", ax=ax)
+sns.countplot(data=filtered_df, x="Gender", hue="treatment", palette=yes_no_palette, ax=ax)
 ax.set_title("Treatment Seeking by Gender")
 st.pyplot(fig)
 
@@ -111,34 +111,62 @@ st.pyplot(fig)
 # Chart 3: Self-Employment Status
 st.subheader("Self-Employment Status")
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="self_employed", palette="Set2", ax=ax)
+sns.countplot(data=filtered_df, x="self_employed", palette=yes_no_palette, ax=ax)
 ax.set_title("Self-Employment Status of Respondents")
 st.pyplot(fig)
 
-# Chart 4: Work Interference
+# Chart 4: How Mental Health Affects Work
 st.subheader("How Mental Health Affects Work")
+interfere_palette = {"Never": "green", "Rarely": "yellowgreen", "Sometimes": "orange", "Often": "red", "Not specified": "gray"}
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="work_interfere", palette="Set2", ax=ax)
+sns.countplot(data=filtered_df, x="work_interfere", order=["Never", "Rarely", "Sometimes", "Often", "Not specified"], palette=interfere_palette, ax=ax)
 ax.set_title("How Mental Health Affects Work Productivity")
 st.pyplot(fig)
 
 # Chart 5: Family History vs Treatment
 st.subheader("Family History vs Treatment")
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="family_history", hue="treatment", palette="Set2", ax=ax)
+sns.countplot(data=filtered_df, x="family_history", hue="treatment", palette=yes_no_palette, ax=ax)
 ax.set_title("Relationship Between Family History and Seeking Treatment")
 st.pyplot(fig)
 
 # Chart 6: Mental Health Benefits at Work
 st.subheader("Mental Health Benefits at Work")
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="mental_health_interview", palette="Set2", ax=ax)
+sns.countplot(data=filtered_df, x="mental_health_interview", palette=neutral_palette, ax=ax)
 ax.set_title("Does the Company Offer Mental Health Benefits?")
 st.pyplot(fig)
 
-# Chart 7: Company Size Distribution
+# Chart 7: Company Size Distribution (Sorted)
 st.subheader("Company Size Distribution")
+company_order = ['1-5', '6-25', '26-100', '100-500', '500-1000', 'More than 1000', 'Not specified']
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="no_employees", palette="Set2", ax=ax)
+sns.countplot(data=filtered_df, x="no_employees", order=company_order, palette=neutral_palette, ax=ax)
 ax.set_title("Distribution of Respondents Based on Company Size")
 st.pyplot(fig)
+
+# Chart 8: Gender vs Family History
+st.subheader("Gender vs Family History")
+fig, ax = plt.subplots(figsize=(10, 6))
+sns.countplot(data=filtered_df, x="Gender", hue="family_history", palette=yes_no_palette, ax=ax)
+ax.set_title("Family History of Mental Illness by Gender")
+st.pyplot(fig)
+
+# Chart 9: Gender vs Self Employment
+st.subheader("Gender vs Self-Employment")
+fig, ax = plt.subplots(figsize=(10, 6))
+sns.countplot(data=filtered_df, x="Gender", hue="self_employed", palette=yes_no_palette, ax=ax)
+ax.set_title("Self-Employment by Gender")
+st.pyplot(fig)
+
+# KPIs
+st.subheader("Key Metrics")
+col1, col2, col3 = st.columns(3)
+col1.metric("Total Respondents", len(filtered_df))
+col2.metric("Treatment Seekers", filtered_df[filtered_df['treatment'] == 'Yes'].shape[0])
+col3.metric("With Family History", filtered_df[filtered_df['family_history'] == 'Yes'].shape[0])
+
+# Bonus Features
+with st.expander("Download Filtered Data"):
+    csv = filtered_df.to_csv(index=False).encode('utf-8')
+    st.download_button("Download CSV", csv, "filtered_data.csv", "text/csv")
