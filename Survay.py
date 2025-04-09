@@ -8,9 +8,9 @@ st.set_page_config(page_title="Mental Health Dashboard", layout="wide")
 st.title("Mental Health Dashboard")
 
 # Load and clean data
-@st.cache_data(show_spinner=False)
+@st.cache_data
 def load_data():
-    df = pd.read_csv("survey.csv").copy()
+    df = pd.read_csv("survey.csv")
 
     # Clean age
     df = df[(df['Age'] >= 15) & (df['Age'] <= 100)]
@@ -52,18 +52,19 @@ def load_data():
 
     df['no_employees'] = df['no_employees'].apply(clean_employees)
 
-    text_fields = ['self_employed', 'treatment', 'work_interfere', 'family_history', 'mental_health_interview']
-    for field in text_fields:
-        df[field] = df[field].astype(str).str.strip().str.lower()
-
+    # Normalize specific fields (capitalize Yes/No responses)
     df['treatment'] = df['treatment'].map({'yes': 'Yes', 'no': 'No'})
     df['family_history'] = df['family_history'].map({'yes': 'Yes', 'no': 'No'})
-    df['self_employed'] = df['self_employed'].replace({'nan': 'Not specified'})
-    df['work_interfere'] = df['work_interfere'].replace({'nan': 'Not specified'})
-    df['mental_health_interview'] = df['mental_health_interview'].replace({'nan': 'Not specified'})
 
+    # Clean NaNs and whitespace in categorical fields
+    text_fields = ['self_employed', 'treatment', 'work_interfere', 'family_history', 'mental_health_interview']
+    for field in text_fields:
+        df[field] = df[field].fillna('Not specified').astype(str).str.strip().str.capitalize()
+
+    # Drop rows with missing critical values
     df.dropna(subset=['Gender', 'treatment', 'family_history'], inplace=True)
 
+    # Convert to categorical
     categorical_cols = ['Gender', 'self_employed', 'treatment', 'family_history',
                         'work_interfere', 'mental_health_interview', 'no_employees']
     for col in categorical_cols:
@@ -86,12 +87,12 @@ filtered_df = df[
     (df['Age'] >= age_range[0]) & (df['Age'] <= age_range[1])
 ]
 
+# Display number of records
 st.markdown(f"### Number of records: {filtered_df.shape[0]}")
 
-# Color palettes
-yes_no_palette = {"Yes": "#4CAF50", "No": "#F44336"}
-self_employed_palette = {"yes": "#4CAF50", "no": "#F44336", "not specified": "#9E9E9E"}
-health_palette = sns.color_palette("coolwarm")
+# Palettes
+yes_no_palette = {"Yes": "green", "No": "red"}
+self_employed_palette = {"Yes": "green", "No": "red", "Not specified": "gray"}
 
 # Chart 1: Treatment by Gender
 st.subheader("Mental Health Treatment by Gender")
@@ -103,7 +104,7 @@ st.pyplot(fig)
 # Chart 2: Age Distribution
 st.subheader("Age Distribution")
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.histplot(data=filtered_df, x="Age", kde=True, color="#2196F3", ax=ax)
+sns.histplot(data=filtered_df, x="Age", kde=True, color="skyblue", ax=ax)
 ax.set_title("Age Distribution of Respondents")
 st.pyplot(fig)
 
@@ -117,7 +118,7 @@ st.pyplot(fig)
 # Chart 4: How Mental Health Affects Work
 st.subheader("How Mental Health Affects Work")
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="work_interfere", palette="Spectral", ax=ax)
+sns.countplot(data=filtered_df, x="work_interfere", palette="coolwarm", ax=ax)
 ax.set_title("How Mental Health Affects Work Productivity")
 st.pyplot(fig)
 
@@ -125,30 +126,25 @@ st.pyplot(fig)
 st.subheader("Family History vs Treatment")
 fig, ax = plt.subplots(figsize=(10, 6))
 sns.countplot(data=filtered_df, x="family_history", hue="treatment", palette=yes_no_palette, ax=ax)
-ax.set_title("Family History and Mental Health Treatment")
+ax.set_title("Relationship Between Family History and Seeking Treatment")
 st.pyplot(fig)
 
 # Chart 6: Mental Health Benefits at Work
 st.subheader("Mental Health Benefits at Work")
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="mental_health_interview", palette="coolwarm", ax=ax)
-ax.set_title("Mental Health Benefits Provided by Employers")
+sns.countplot(data=filtered_df, x="mental_health_interview", palette="crest", ax=ax)
+ax.set_title("Does the Company Offer Mental Health Benefits?")
 st.pyplot(fig)
 
-# Chart 7: Company Size Distribution (Ordered)
+# Chart 7: Company Size Distribution
 st.subheader("Company Size Distribution")
-company_order = ['1-5', '6-25', '26-100', '100-500', '500-1000', 'More than 1000', 'Not specified']
+order = ['1-5', '6-25', '26-100', '100-500', '500-1000', 'More than 1000', 'Not specified']
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="no_employees", order=company_order, palette="Blues", ax=ax)
-ax.set_title("Company Size of Respondents")
+sns.countplot(data=filtered_df, x="no_employees", order=order, palette="viridis", ax=ax)
+ax.set_title("Distribution of Respondents Based on Company Size")
 st.pyplot(fig)
 
-# KPI Section
-st.markdown("## Key Metrics")
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Respondents", len(filtered_df))
-col2.metric("% Seeking Treatment", f"{(filtered_df['treatment'] == 'Yes').mean() * 100:.1f}%")
-col3.metric("% with Family History", f"{(filtered_df['family_history'] == 'Yes').mean() * 100:.1f}%")
-
-# CSV Download
-st.download_button("Download Filtered Data", data=filtered_df.to_csv(index=False), file_name="filtered_mental_health_data.csv")
+# Bonus Features
+st.sidebar.markdown("---")
+if st.sidebar.button("Download Filtered CSV"):
+    st.download_button("Download CSV", filtered_df.to_csv(index=False), file_name="filtered_mental_health_data.csv")
