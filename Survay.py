@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 
 # Page configuration
 st.set_page_config(page_title="Mental Health Dashboard", layout="wide")
@@ -12,10 +13,8 @@ st.title("Mental Health Dashboard")
 def load_data():
     df = pd.read_csv("survey.csv")
 
-    # Clean age
     df = df[(df['Age'] >= 15) & (df['Age'] <= 100)]
 
-    # Clean gender values
     def clean_gender(g):
         g = str(g).strip().lower()
         male_terms = ['male', 'm', 'man', 'cis male', 'cis man', 'msle', 'malr', 'mail', 'maile', 'make', 'mal', 'male-ish']
@@ -32,7 +31,6 @@ def load_data():
 
     df['Gender'] = df['Gender'].apply(clean_gender)
 
-    # Clean 'no_employees' column
     def clean_employees(value):
         value = str(value).strip().lower()
         if '1-5' in value:
@@ -52,19 +50,15 @@ def load_data():
 
     df['no_employees'] = df['no_employees'].apply(clean_employees)
 
-    # Normalize specific fields (capitalize Yes/No responses)
     df['treatment'] = df['treatment'].astype(str).str.strip().str.capitalize()
     df['family_history'] = df['family_history'].astype(str).str.strip().str.capitalize()
 
-    # Clean NaNs and whitespace in categorical fields
     text_fields = ['self_employed', 'treatment', 'work_interfere', 'family_history', 'mental_health_interview']
     for field in text_fields:
         df[field] = df[field].fillna('Not specified').astype(str).str.strip().str.capitalize()
 
-    # Drop rows with missing critical values
     df.dropna(subset=['Gender', 'treatment', 'family_history'], inplace=True)
 
-    # Convert to categorical
     categorical_cols = ['Gender', 'self_employed', 'treatment', 'family_history',
                         'work_interfere', 'mental_health_interview', 'no_employees']
     for col in categorical_cols:
@@ -80,71 +74,64 @@ countries = st.sidebar.multiselect("Select Country", sorted(df['Country'].dropna
 genders = st.sidebar.multiselect("Select Gender", df['Gender'].cat.categories)
 age_range = st.sidebar.slider("Select Age Range", 15, 100, (20, 40))
 
-# Filter dataset
 filtered_df = df[
     (df['Country'].isin(countries) if countries else True) &
     (df['Gender'].isin(genders) if genders else True) &
     (df['Age'] >= age_range[0]) & (df['Age'] <= age_range[1])
 ]
 
-# Display number of records
-st.markdown(f"### Number of records: {filtered_df.shape[0]}")
+# KPIs
+st.markdown("### Key Performance Indicators")
+kpi1, kpi2, kpi3 = st.columns(3)
+kpi1.metric("Total Responses", len(filtered_df))
+kpi2.metric("Treatment %", f"{(filtered_df['treatment'] == 'Yes').mean() * 100:.1f}%")
+kpi3.metric("Family History %", f"{(filtered_df['family_history'] == 'Yes').mean() * 100:.1f}%")
+
+# Tabs for sections
+tabs = st.tabs(["Overview", "Charts", "Download"])
 
 # Palettes
 yes_no_palette = {key: color for key, color in zip(filtered_df['treatment'].unique(), ['green', 'red', 'gray'])}
 self_employed_palette = {key: color for key, color in zip(filtered_df['self_employed'].unique(), ['green', 'red', 'gray', 'blue'])}
 
-# Chart 1: Treatment by Gender
-st.subheader("Mental Health Treatment by Gender")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="Gender", hue="treatment", palette=yes_no_palette, ax=ax)
-ax.set_title("Treatment Seeking by Gender")
-st.pyplot(fig)
+with tabs[0]:
+    st.subheader("Treatment by Gender")
+    fig1 = px.histogram(filtered_df, x="Gender", color="treatment", barmode='group')
+    st.plotly_chart(fig1, use_container_width=True)
 
-# Chart 2: Age Distribution
-st.subheader("Age Distribution")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.histplot(data=filtered_df, x="Age", kde=True, color="skyblue", ax=ax)
-ax.set_title("Age Distribution of Respondents")
-st.pyplot(fig)
+    st.subheader("Age Distribution")
+    fig2 = px.histogram(filtered_df, x="Age", nbins=20, marginal="box")
+    st.plotly_chart(fig2, use_container_width=True)
 
-# Chart 3: Self-Employment Status
-st.subheader("Self-Employment Status")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="self_employed", palette=self_employed_palette, ax=ax)
-ax.set_title("Self-Employment Status of Respondents")
-st.pyplot(fig)
+    st.subheader("Self-Employment Status")
+    fig3 = px.pie(filtered_df, names="self_employed", title="Self-Employment Breakdown")
+    st.plotly_chart(fig3, use_container_width=True)
 
-# Chart 4: How Mental Health Affects Work
-st.subheader("How Mental Health Affects Work")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="work_interfere", palette="coolwarm", ax=ax)
-ax.set_title("How Mental Health Affects Work Productivity")
-st.pyplot(fig)
+    st.subheader("How Mental Health Affects Work")
+    fig4 = px.bar(filtered_df['work_interfere'].value_counts().reset_index(), x='index', y='work_interfere',
+                 labels={'index': 'Interference Level', 'work_interfere': 'Count'}, color='index')
+    st.plotly_chart(fig4, use_container_width=True)
 
-# Chart 5: Family History vs Treatment
-st.subheader("Family History vs Treatment")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="family_history", hue="treatment", palette=yes_no_palette, ax=ax)
-ax.set_title("Relationship Between Family History and Seeking Treatment")
-st.pyplot(fig)
+    st.subheader("Family History vs Treatment")
+    family_treatment = filtered_df.groupby(['family_history', 'treatment']).size().reset_index(name='count')
+    fig5 = px.sunburst(family_treatment, path=['family_history', 'treatment'], values='count')
+    st.plotly_chart(fig5, use_container_width=True)
 
-# Chart 6: Mental Health Benefits at Work
-st.subheader("Mental Health Benefits at Work")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="mental_health_interview", palette="crest", ax=ax)
-ax.set_title("Does the Company Offer Mental Health Benefits?")
-st.pyplot(fig)
+    st.subheader("Mental Health Benefits at Work")
+    fig6 = px.bar(filtered_df['mental_health_interview'].value_counts().reset_index(), x='index', y='mental_health_interview',
+                 labels={'index': 'Interview Status', 'mental_health_interview': 'Count'})
+    st.plotly_chart(fig6, use_container_width=True)
 
-# Chart 7: Company Size Distribution
-st.subheader("Company Size Distribution")
-order = ['1-5', '6-25', '26-100', '100-500', '500-1000', 'More than 1000', 'Not specified']
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.countplot(data=filtered_df, x="no_employees", order=order, palette="viridis", ax=ax)
-ax.set_title("Distribution of Respondents Based on Company Size")
-st.pyplot(fig)
+    st.subheader("Company Size Distribution")
+    order = ['1-5', '6-25', '26-100', '100-500', '500-1000', 'More than 1000', 'Not specified']
+    company_size = filtered_df['no_employees'].value_counts().reindex(order).reset_index()
+    fig7 = px.bar(company_size, x='index', y='no_employees', labels={'index': 'Company Size', 'no_employees': 'Count'})
+    st.plotly_chart(fig7, use_container_width=True)
 
-# Bonus Features
-st.sidebar.markdown("---")
-if st.sidebar.button("Download Filtered CSV"):
+with tabs[1]:
+    st.subheader("All Charts Above")
+    st.dataframe(filtered_df.head())
+
+with tabs[2]:
+    st.subheader("Download Filtered Dataset")
     st.download_button("Download CSV", filtered_df.to_csv(index=False), file_name="filtered_mental_health_data.csv")
