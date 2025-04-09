@@ -53,8 +53,8 @@ def load_data():
     df['no_employees'] = df['no_employees'].apply(clean_employees)
 
     # Normalize specific fields (capitalize Yes/No responses)
-    df['treatment'] = df['treatment'].map({'yes': 'Yes', 'no': 'No'})
-    df['family_history'] = df['family_history'].map({'yes': 'Yes', 'no': 'No'})
+    df['treatment'] = df['treatment'].astype(str).str.strip().str.capitalize()
+    df['family_history'] = df['family_history'].astype(str).str.strip().str.capitalize()
 
     # Clean NaNs and whitespace in categorical fields
     text_fields = ['self_employed', 'treatment', 'work_interfere', 'family_history', 'mental_health_interview']
@@ -91,8 +91,8 @@ filtered_df = df[
 st.markdown(f"### Number of records: {filtered_df.shape[0]}")
 
 # Palettes
-yes_no_palette = {"Yes": "green", "No": "red"}
-self_employed_palette = {"Yes": "green", "No": "red", "Not specified": "gray"}
+yes_no_palette = {key: color for key, color in zip(filtered_df['treatment'].unique(), ['green', 'red', 'gray'])}
+self_employed_palette = {key: color for key, color in zip(filtered_df['self_employed'].unique(), ['green', 'red', 'gray', 'blue'])}
 
 # Chart 1: Treatment by Gender
 st.subheader("Mental Health Treatment by Gender")
