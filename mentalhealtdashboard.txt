@@ -126,6 +126,24 @@ with tabs[0]:
         plt.xticks(rotation=45)
         st.pyplot(fig)
 
+    # New Pie Chart
+    st.markdown("#### Gender Distribution")
+    fig, ax = plt.subplots(figsize=(4, 3))
+    gender_counts = filtered_df['Gender'].value_counts()
+    ax.pie(gender_counts, labels=gender_counts.index, autopct='%1.1f%%', colors=sns.color_palette("pastel"))
+    ax.axis('equal')
+    st.pyplot(fig)
+
+    # New Line Chart
+    st.markdown("#### Age vs. Treatment Percentage")
+    fig, ax = plt.subplots(figsize=(4, 3))
+    age_treatment = filtered_df.groupby('Age')['treatment'].apply(lambda x: (x == 'Yes').mean() * 100)
+    ax.plot(age_treatment.index, age_treatment.values, marker='o', color="#6497b1")
+    ax.set_xlabel("Age")
+    ax.set_ylabel("Treatment Percentage (%)")
+    ax.set_title("Percentage of People Seeking Treatment by Age")
+    st.pyplot(fig)
+
 with tabs[1]:
     st.subheader("Filtered Data Table")
     st.dataframe(filtered_df.head(50))
