@@ -126,37 +126,38 @@ with tabs[0]:
         plt.xticks(rotation=45)
         st.pyplot(fig)
 
-    # New Pie Chart
-    st.markdown("#### Gender Distribution")
-    fig, ax = plt.subplots(figsize=(4, 3))
-    gender_counts = filtered_df['Gender'].value_counts()
-    ax.pie(gender_counts, labels=gender_counts.index, autopct='%1.1f%%', colors=sns.color_palette("pastel"))
-    ax.axis('equal')
-    st.pyplot(fig)
+    col5, col6 = st.columns(2)
+    with col5:
+        st.markdown("#### Average Age by Gender")
+        avg_age = filtered_df.groupby('Gender')['Age'].mean().reset_index()
+        fig, ax = plt.subplots(figsize=(4, 3))
+        sns.lineplot(data=avg_age, x='Gender', y='Age', marker='o', color="#f4a261", ax=ax)
+        ax.set_xlabel("Gender")
+        ax.set_ylabel("Average Age")
+        st.pyplot(fig)
 
-    # New Line Chart
-    st.markdown("#### Age vs. Treatment Percentage")
-    fig, ax = plt.subplots(figsize=(4, 3))
-    age_treatment = filtered_df.groupby('Age')['treatment'].apply(lambda x: (x == 'Yes').mean() * 100)
-    ax.plot(age_treatment.index, age_treatment.values, marker='o', color="#6497b1")
-    ax.set_xlabel("Age")
-    ax.set_ylabel("Treatment Percentage (%)")
-    ax.set_title("Percentage of People Seeking Treatment by Age")
-    st.pyplot(fig)
+    with col6:
+        st.markdown("#### Top 10 Countries by Treatment %")
+        country_treatment = filtered_df.groupby('Country')['treatment'].apply(
+            lambda x: (x == 'Yes').mean() * 100
+        ).sort_values(ascending=False).head(10).reset_index()
+        fig, ax = plt.subplots(figsize=(4, 3))
+        sns.barplot(data=country_treatment, y='Country', x='treatment', palette='Blues_d', ax=ax)
+        ax.set_xlabel("Treatment %")
+        ax.set_ylabel("Country")
+        ax.set_xlim(0, 100)
+        st.pyplot(fig)
 
 with tabs[1]:
     st.subheader("Filtered Data Table")
     st.dataframe(filtered_df.head(50))
 
     st.subheader("Correlation Heatmap")
-
-    # Create numeric versions of categorical variables for correlation
     numeric_df = filtered_df.copy()
     mapping = {'Yes': 1, 'No': 0, 'Not specified': None}
     numeric_df['treatment_num'] = numeric_df['treatment'].map(mapping)
     numeric_df['family_history_num'] = numeric_df['family_history'].map(mapping)
 
-    # Select relevant columns for correlation
     corr_columns = ['Age', 'treatment_num', 'family_history_num']
     corr = numeric_df[corr_columns].corr()
 
